@@ -1,42 +1,38 @@
-from flask import Flask
-# TODO: clean up unused imports
-from pbu import Logger, MysqlConnection
-from config import load_config, get_log_folder, get_mongodb_config, get_mysql_config
-from storage.example_mongo_store import ExampleStore as ExampleMongoStore
-from storage.example_mysql_store import ExampleStore as ExampleMysqlStore
-import api.static_api as static_api
-import api.example_api as example_api
+from flask import Flask, render_template
 
 if __name__ == "__main__":
-    logger = Logger("MAIN", log_folder=get_log_folder())
-    logger.info("==========================================")
-    logger.info("           Starting application")
-    logger.info("==========================================")
-
-    # load config from .env file
-    config = load_config()
-
-    # ---- database and stores ----
-
-    # create mysql connection (TODO: remove this block or uncomment)
-    # host, db, username, password = get_mysql_config()
-    # con = MysqlConnection(host, db, username, password)
-
-    # fetch mongo config (TODO: remove this block or uncomment)
-    mongo_url, mongo_db = get_mongodb_config()
-
-    # initialise stores # TODO: add stores here and remove examples
-    stores = {
-        # "mysql_example": ExampleMysqlStore(connection=con, table_name="example"),
-        "mongo_example": ExampleMongoStore(mongo_url=mongo_url, mongo_db=mongo_db, collection_name="examples"),
-    }
-
     # create flask app
     app = Flask(__name__)
     # register endpoints
-    static_api.register_endpoints(app)
-    # TODO: replace this with your (multiple) API registrations
-    example_api.register_endpoints(app, stores)
+
+    @app.route("/", methods=["GET"])
+    def get_index():
+        """
+        Each call to the API, which doesn't start with `/api` will be covered by this function providing the index.html
+        to the caller. The index.html will load the index.js in the browser, which will render the frontend. The
+        frontend will then decide what view to render. The backend is not responsible for that.
+
+        **IMPORTANT**
+        This function needs to be updated whenever new frontend routes are added to the React router. You can provide
+        multiple @app.route(..) lines for multiple frontend routes that all just return the frontend (because the
+        frontend has it's own router which decides what page to render)
+
+        :return: the index.html as file (basically delivering the whole frontend)
+        """
+        return render_template("index.html")
+
+    # prevent caching of the frontend during development
+    @app.after_request
+    def add_header(r):
+        """
+        Add headers to both force latest IE rendering engine or Chrome Frame,
+        and also to cache the rendered page for 10 minutes.
+        """
+        r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        r.headers["Pragma"] = "no-cache"
+        r.headers["Expires"] = "0"
+        r.headers['Cache-Control'] = 'public, max-age=0'
+        return r
 
     # start flask app
-    app.run(host='0.0.0.0', port=5555, debug=config["IS_DEBUG"])
+    app.run(host='0.0.0.0', port=5555)
